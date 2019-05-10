@@ -1,19 +1,56 @@
 const axios = require('axios');
+const bcrypt = require('bcryptjs');
 
-const { authenticate } = require('../auth/authenticate');
+const tokenService = require('../auth/token-service');
+const { restricted } = require('../auth/restricted');
+
+const Users = require('../users/users-model');
 
 module.exports = server => {
   server.post('/api/register', register);
   server.post('/api/login', login);
-  server.get('/api/jokes', authenticate, getJokes);
+  server.get('/api/jokes', restricted, getJokes);
 };
 
 function register(req, res) {
   // implement user registration
+  let users = req.body
+  // const hash = bcrypt.hashSync(users.password, 2);
+  // users.password = hash;
+
+  Users.add(users)
+    .then(saved => {
+      //add token
+      // const token = tokenService.generateToken(users);
+    res.status(201).json(saved);
+  })
+
+  .catch(error => {
+    res.status(500).json({error: error.message})
+})
 }
 
 function login(req, res) {
   // implement user login
+  let { username, password} = req.body;
+
+  Users.findBy({ username })
+  .first()
+  .then(users => {
+    if (users && bcrypt.compareSync(password, username)){
+      //add token
+      const token = tokenService.generateToken(users);
+      res.status(200).json({
+        message: `Welcome ${users.username}! Let's pass this SPRINT!!`,
+        token,
+      })
+    } else {
+      res.status(400).json({message: 'Invalid Credentials'})
+    }
+  })
+      .catch(error => {
+        res.status(500).json({ error: error.message })
+      })
 }
 
 function getJokes(req, res) {
